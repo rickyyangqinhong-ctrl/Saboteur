@@ -3,7 +3,6 @@
 const $ = s => document.querySelector(s);
 const screens = ['#menu', '#lobby', '#game'];
 const showScreen = id => screens.forEach(s => $(s).classList.toggle('hidden', s !== id));
-const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
 /* ---------------- state ---------------- */
 let ws = null, myId = null, isHost = false;
@@ -95,7 +94,7 @@ function startGame(m) {
   pendingTask = null; mini = null; meetingOpen = false; lastInput = '0,0';
   hideOverlays();
   showScreen('#game');
-  buildHud();
+  buildHud(); buildBase();
   const sab = role === 'saboteur';
   $('#revTitle').textContent = sab ? 'You are a SABOTEUR' : 'You are a BUILDER';
   $('#revTitle').style.color = sab ? '#ff8b7d' : '#8fd6a0';
@@ -289,44 +288,81 @@ window.addEventListener('keyup', e => {
 });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; send({ t: 'hold', on: false }); sendInput(); });
 
-/* ---------------- mini-games ---------------- */
-const MINI_TITLE = { chop: 'Chop the tree', mine: 'Mine the stone', harvest: 'Harvest the crops', hammer: 'Hammer it together' };
+/* ---------------- mini-games (text + emoji) ---------------- */
+const MINI_TITLE = { chop: '🌲 Chop the tree', mine: '🪨 Mine the stone', harvest: '🌾 Harvest the crops', hammer: '🔨 Hammer it together' };
 const MINI_HELP = {
-  chop: 'Press Space (or click) when the marker is in the green zone. Land 3 hits.',
-  mine: 'Stop the cursor inside the green zone. Three rounds, the zone shrinks.',
-  harvest: 'Click the crops in order, 1 to 5. A wrong click starts you over.',
-  hammer: 'Repeat the arrow sequence with arrow keys or WASD.',
+  chop: 'Press Space (or the button) when 🟧 is on the 🟩 zone. Land 3 hits.',
+  mine: 'Stop 🟧 inside the 🟩 zone. 3 rounds, and the zone shrinks each time.',
+  harvest: 'Click the numbers in order, 1️⃣ to 5️⃣. A wrong pick starts you over.',
+  hammer: 'Repeat the arrows with the arrow keys / WASD, or click the buttons.',
 };
+const NUM = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'], ARROWS = ['⬅️', '⬆️', '➡️', '⬇️'];
+const rnd = (a, b) => a + Math.random() * (b - a);
+function addMiniBtn(text, fn) { const b = document.createElement('button'); b.textContent = text; b.onclick = fn; $('#miniBtns').append(b); }
+
 function openMini(station) {
   pendingTask = null;
   const kind = station === 'forest' ? 'chop' : station === 'quarry' ? 'mine' : station === 'farm' ? 'harvest' : 'hammer';
-  mini = { kind, station, t: 0, flash: 0, flashOk: true };
-  if (kind === 'chop') Object.assign(mini, { x: 20, dir: 1, speed: 260, hits: 0 });
-  if (kind === 'mine') { Object.assign(mini, { u: 0, dir: 1, round: 0 }); newZone(); }
+  mini = { kind, station, flash: 0, ok: true, last: '' };
+  $('#miniBtns').innerHTML = ''; $('#miniGrid').innerHTML = ''; $('#miniGrid').classList.add('hidden');
+  if (kind === 'chop') { Object.assign(mini, { pos: 0, dir: 1, speed: 0.7, hits: 0 }); addMiniBtn('🪓 Chop (Space)', miniAction); }
+  if (kind === 'mine') { Object.assign(mini, { pos: 0, dir: 1, round: 0 }); newZone(); addMiniBtn('⛏️ Strike (Space)', miniAction); }
   if (kind === 'harvest') {
-    const nodes = [];
-    while (nodes.length < 5) {
-      const n = { x: rnd(40, 400), y: rnd(40, 180) };
-      if (nodes.every(o => Math.hypot(o.x - n.x, o.y - n.y) > 62)) nodes.push(n);
+    const all = Array.from({ length: 32 }, (_, i) => i).sort(() => Math.random() - 0.5);
+    mini.nodes = all.slice(0, 5); mini.next = 1; mini.cells = [];
+    const g = $('#miniGrid'); g.classList.remove('hidden');
+    for (let c = 0; c < 32; c++) {
+      const n = mini.nodes.indexOf(c);
+      if (n >= 0) {
+        const b = document.createElement('button'); b.className = 'cell'; b.textContent = NUM[n]; b.onclick = () => harvestClick(n);
+        mini.cells[n] = b; g.append(b);
+      } else { const sp = document.createElement('span'); sp.className = 'cell'; sp.textContent = '🟫'; g.append(sp); }
     }
-    Object.assign(mini, { nodes, next: 1 });
   }
-  if (kind === 'hammer') Object.assign(mini, { seq: Array.from({ length: 6 }, () => Math.floor(Math.random() * 4)), i: 0 });
+  if (kind === 'hammer') {
+    mini.seq = Array.from({ length: 6 }, () => Math.floor(Math.random() * 4)); mini.i = 0;
+    ARROWS.forEach((a, d) => addMiniBtn(a, () => hammerPress(d)));
+  }
   $('#miniTitle').textContent = MINI_TITLE[kind];
   $('#miniHelp').textContent = MINI_HELP[kind];
   $('#mini').classList.remove('hidden');
   lastInput = ''; sendInput();
 }
-const rnd = (a, b) => a + Math.random() * (b - a);
-function newZone() { const w = 0.22 - mini.round * 0.05; mini.zw = w; mini.zs = rnd(0.08, 0.92 - w); }
+function newZone() { mini.zw = 5 - mini.round; mini.zs = 1 + Math.floor(Math.random() * (23 - mini.zw)); }
 function closeMini(cancel) {
   if (!mini) return;
   if (cancel) send({ t: 'taskCancel' });
   mini = null; $('#mini').classList.add('hidden');
 }
 function miniWin() { const s = mini.station; closeMini(false); send({ t: 'taskDone', station: s }); }
-function miniFlash(ok) { mini.flash = 0.25; mini.flashOk = ok; }
+function miniFlash(ok) { mini.flash = 0.25; mini.ok = ok; }
+const miniIdx = () => Math.round(mini.pos * 24);
 
+function miniAction() {
+  if (!mini) return;
+  const i = miniIdx();
+  if (mini.kind === 'chop') {
+    if (i >= 11 && i <= 13) { mini.hits++; mini.speed += 0.12; miniFlash(true); if (mini.hits >= 3) miniWin(); }
+    else miniFlash(false);
+  } else if (mini.kind === 'mine') {
+    if (i >= mini.zs && i < mini.zs + mini.zw) { mini.round++; miniFlash(true); if (mini.round >= 3) miniWin(); else newZone(); }
+    else miniFlash(false);
+  }
+}
+function harvestClick(n) {
+  if (!mini) return;
+  if (n === mini.next - 1) {
+    mini.cells[n].textContent = '✅'; mini.next++; miniFlash(true);
+    if (mini.next > 5) miniWin();
+  } else {
+    mini.next = 1; mini.cells.forEach((b, i) => b.textContent = NUM[i]); miniFlash(false);
+  }
+}
+function hammerPress(d) {
+  if (!mini) return;
+  if (d === mini.seq[mini.i]) { mini.i++; miniFlash(true); if (mini.i >= mini.seq.length) miniWin(); }
+  else { mini.i = 0; miniFlash(false); }
+}
 function miniKey(e, k) {
   if (k === 'escape') { closeMini(true); return; }
   if (mini.kind === 'chop' || mini.kind === 'mine') {
@@ -334,79 +370,29 @@ function miniKey(e, k) {
   } else if (mini.kind === 'hammer') {
     const d = { arrowleft: 0, a: 0, arrowup: 1, w: 1, arrowright: 2, d: 2, arrowdown: 3, s: 3 }[k];
     if (d === undefined) return;
-    e.preventDefault();
-    if (d === mini.seq[mini.i]) { mini.i++; miniFlash(true); if (mini.i >= mini.seq.length) miniWin(); }
-    else { mini.i = 0; miniFlash(false); }
+    e.preventDefault(); hammerPress(d);
   }
 }
-function miniAction() {
-  if (mini.kind === 'chop') {
-    if (Math.abs(mini.x - 220) <= 32) { mini.hits++; mini.speed += 50; miniFlash(true); if (mini.hits >= 3) miniWin(); }
-    else miniFlash(false);
-  } else if (mini.kind === 'mine') {
-    if (mini.u >= mini.zs && mini.u <= mini.zs + mini.zw) {
-      mini.round++; miniFlash(true);
-      if (mini.round >= 3) miniWin(); else newZone();
-    } else miniFlash(false);
-  }
-}
-$('#mcv').addEventListener('mousedown', e => {
-  if (!mini) return;
-  const c = $('#mcv'), r = c.getBoundingClientRect();
-  const x = (e.clientX - r.left) * c.width / r.width, y = (e.clientY - r.top) * c.height / r.height;
-  if (mini.kind === 'harvest') {
-    const hit = mini.nodes.findIndex(o => Math.hypot(o.x - x, o.y - y) < 24);
-    if (hit < 0) return;
-    if (hit === mini.next - 1) { mini.next++; miniFlash(true); if (mini.next > 5) miniWin(); }
-    else { mini.next = 1; miniFlash(false); }
-  } else miniAction();
-});
 
 function updateMini(dt) {
   if (!mini) return;
-  mini.t += dt; mini.flash = Math.max(0, mini.flash - dt);
-  if (mini.kind === 'chop') {
-    mini.x += mini.dir * mini.speed * dt;
-    if (mini.x > 420) { mini.x = 420; mini.dir = -1; } if (mini.x < 20) { mini.x = 20; mini.dir = 1; }
+  mini.flash = Math.max(0, mini.flash - dt);
+  if (mini.kind === 'chop' || mini.kind === 'mine') {
+    const sp = mini.kind === 'chop' ? mini.speed : 0.7 + mini.round * 0.25;
+    mini.pos += mini.dir * sp * dt;
+    if (mini.pos > 1) { mini.pos = 1; mini.dir = -1; }
+    if (mini.pos < 0) { mini.pos = 0; mini.dir = 1; }
   }
-  if (mini.kind === 'mine') {
-    mini.u += mini.dir * (0.8 + mini.round * 0.25) * dt;
-    if (mini.u > 1) { mini.u = 1; mini.dir = -1; } if (mini.u < 0) { mini.u = 0; mini.dir = 1; }
-  }
-  if (!mini) return;
-  const c = $('#mcv'), g = c.getContext('2d');
-  g.clearRect(0, 0, 440, 220);
-  g.fillStyle = mini.flash > 0 ? (mini.flashOk ? '#1d3a2a' : '#4a2320') : '#121a22';
-  g.fillRect(0, 0, 440, 220);
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  if (mini.kind === 'chop') {
-    g.fillStyle = '#2f3d4d'; g.fillRect(20, 105, 400, 20);
-    g.fillStyle = '#4e9d62'; g.fillRect(188, 100, 64, 30);
-    g.fillStyle = '#ecdcb8'; g.beginPath(); g.arc(mini.x, 115, 13, 0, 7); g.fill();
-    g.font = `40px ${EMOJI_FONT}`; g.fillStyle = '#fff'; g.fillText('🌲', 220, 50);
-    g.font = '16px sans-serif'; g.fillText('●'.repeat(mini.hits) + '○'.repeat(3 - mini.hits), 220, 180);
-  } else if (mini.kind === 'mine') {
-    g.fillStyle = '#2f3d4d'; g.fillRect(20, 105, 400, 20);
-    g.fillStyle = '#4e9d62'; g.fillRect(20 + mini.zs * 400, 100, mini.zw * 400, 30);
-    g.fillStyle = '#ecdcb8'; g.fillRect(20 + mini.u * 400 - 3, 92, 6, 46);
-    g.font = `40px ${EMOJI_FONT}`; g.fillStyle = '#fff'; g.fillText('🪨', 220, 50);
-    g.font = '16px sans-serif'; g.fillText('●'.repeat(mini.round) + '○'.repeat(3 - mini.round), 220, 180);
-  } else if (mini.kind === 'harvest') {
-    mini.nodes.forEach((n, i) => {
-      g.fillStyle = i < mini.next - 1 ? '#4e9d62' : '#d8a13b';
-      g.beginPath(); g.arc(n.x, n.y, 22, 0, 7); g.fill();
-      g.fillStyle = '#1b2530'; g.font = 'bold 20px sans-serif'; g.fillText(i + 1, n.x, n.y + 1);
-    });
-  } else if (mini.kind === 'hammer') {
-    const arrows = ['←', '↑', '→', '↓'];
-    mini.seq.forEach((d, i) => {
-      const x = 50 + i * 68;
-      g.fillStyle = i < mini.i ? '#4e9d62' : i === mini.i ? '#d8a13b' : '#2f3d4d';
-      g.fillRect(x - 26, 85, 52, 52);
-      g.fillStyle = i === mini.i ? '#1b2530' : '#ecdcb8'; g.font = 'bold 30px sans-serif'; g.fillText(arrows[d], x, 112);
-    });
-    g.font = `30px ${EMOJI_FONT}`; g.fillText('🔨', 220, 40);
-  }
+  let s = '';
+  const track = (i, a, b) => Array.from({ length: 25 }, (_, k) => k === i ? '🟧' : (k >= a && k <= b ? '🟩' : '⬜')).join('');
+  if (mini.kind === 'chop') s = track(miniIdx(), 11, 13) + '\n🪓 ' + '✅'.repeat(mini.hits) + '⬜'.repeat(3 - mini.hits);
+  else if (mini.kind === 'mine') s = track(miniIdx(), mini.zs, mini.zs + mini.zw - 1) + '\n⛏️ ' + '✅'.repeat(mini.round) + '⬜'.repeat(3 - mini.round);
+  else if (mini.kind === 'harvest') s = 'Next: ' + (mini.next <= 5 ? NUM[mini.next - 1] : '✅');
+  else if (mini.kind === 'hammer') s = mini.seq.map((d, i) => i < mini.i ? '✅' : i === mini.i ? '👉' + ARROWS[d] : ARROWS[d]).join(' ');
+  const el = $('#miniLine');
+  if (s !== mini.last) { mini.last = s; el.textContent = s; }
+  const cls = mini.flash > 0 ? (mini.ok ? 'good' : 'bad') : '';
+  if (el.className !== cls) el.className = cls;
 }
 
 /* ---------------- meeting ---------------- */
@@ -515,121 +501,86 @@ function onOver(m) {
   send({ t: 'input', dx: 0, dy: 0 }); send({ t: 'hold', on: false });
 }
 
-/* ---------------- rendering ---------------- */
-const cv = $('#cv'), ctx = cv.getContext('2d');
-function emoji(ch, x, y, size, alpha = 1) {
-  ctx.globalAlpha = alpha; ctx.font = `${size}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#000'; ctx.fillText(ch, x, y); ctx.globalAlpha = 1;
-}
-function label(t, x, y, color = 'rgba(15,25,20,.75)', size = 12) {
-  ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color; ctx.fillText(t, x, y);
-}
+/* ---------------- rendering (emoji text grid) ---------------- */
+const CELL = 40, GW = 25, GH = 16;
+const CIRCLE = { '#e74c3c': '🔴', '#3498db': '🔵', '#2ecc71': '🟢', '#f1c40f': '🟡', '#9b59b6': '🟣', '#e67e22': '🟠', '#1abc9c': '🟤', '#fd79a8': '🌸', '#95a5a6': '🔘', '#ecf0f1': '⚪' };
+const circle = c => CIRCLE[c] || '🔵';
+const cellOf = (x, y) => [Math.min(GW - 1, Math.max(0, Math.floor(x / CELL))), Math.min(GH - 1, Math.max(0, Math.floor(y / CELL)))];
+let base = [];
 
-function draw(dt, now) {
-  if (!map) return;
-  const S = map.stations;
-  ctx.clearRect(0, 0, map.W, map.H);
-  ctx.fillStyle = '#7fae63'; ctx.fillRect(0, 0, map.W, map.H);
-
-  // dirt paths
-  ctx.strokeStyle = '#c8a86a'; ctx.lineWidth = 22; ctx.lineCap = 'round';
-  ctx.beginPath();
-  for (const k of ['forest', 'quarry', 'farm', 'generator', 'bell']) { ctx.moveTo(S.store.x, S.store.y); ctx.lineTo(S[k].x, S[k].y); }
-  for (const pl of map.plots) { ctx.moveTo(S.store.x, S.store.y); ctx.lineTo(pl.x, pl.y); }
-  ctx.stroke();
-
-  // obstacles
+function buildBase() {
+  base = Array(GW * GH).fill('🟩');
   for (const o of map.obstacles) {
-    ctx.fillStyle = '#5d6b5c'; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 8); ctx.fill();
-    emoji('🪨', o.x + o.w / 2, o.y + o.h / 2, Math.min(o.w, o.h) * 0.7);
+    const [x0, y0] = cellOf(o.x, o.y), [x1, y1] = cellOf(o.x + o.w - 1, o.y + o.h - 1);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) base[y * GW + x] = '🪨';
   }
+  for (const k in map.stations) { const s = map.stations[k]; const [x, y] = cellOf(s.x, s.y); base[y * GW + x] = s.icon; }
+  for (const p of map.pylons) { const [x, y] = cellOf(p.x, p.y); base[y * GW + x] = '📡'; }
+  $('#legendKey').textContent = Object.values(map.stations).map(s => `${s.icon} ${s.label}`).join('   ')
+    + "   📡 Pylon   🚧 Build site   🏗️ In progress   💥 Sabotaged   🪨 Rock   ⬛ Can't see";
+}
 
-  // stations
-  for (const k in S) {
-    const s = S[k];
-    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(s.x, s.y, 34, 0, 7); ctx.fill();
-    emoji(s.icon, s.x, s.y, 34);
-    label(s.label, s.x, s.y + 46);
-  }
-  // pylons
-  for (const p of map.pylons) { emoji('🗼', p.x, p.y, 28, 0.5); label('Pylon', p.x, p.y + 28); }
+function renderGrid() {
+  if (!map || !state) return;
+  const me = P[myId], alive = myAlive();
+  const cells = base.slice();
 
-  // plots
-  if (state) for (const pl of map.plots) {
-    const steps = state.steps[pl.id], done = steps >= 3;
-    ctx.fillStyle = done ? '#e8d5a8' : 'rgba(255,255,255,.28)';
-    ctx.beginPath(); ctx.roundRect(pl.x - 38, pl.y - 38, 76, 76, 10); ctx.fill();
-    if (!done) { ctx.setLineDash([6, 5]); ctx.strokeStyle = '#fff8'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
-    emoji(pl.icon, pl.x, pl.y - 2, done ? 42 : 34, done ? 1 : 0.25 + steps * 0.25);
-    for (let i = 0; i < 3; i++) { ctx.fillStyle = i < steps ? '#4e7d5b' : '#0004'; ctx.beginPath(); ctx.arc(pl.x - 12 + i * 12, pl.y + 27, 4, 0, 7); ctx.fill(); }
-    label(pl.name, pl.x, pl.y + 52);
-    if (state.damaged[pl.id]) { emoji('💥', pl.x + 28, pl.y - 30, 28); emoji('💨', pl.x - 28, pl.y - 32, 20, 0.8); }
-  }
-
-  // players
-  const list = Object.entries(P).filter(([id, r]) => r.seen).sort((a, b) => a[1].y - b[1].y);
-  for (const [id, r] of list) {
-    r.x += (r.tx - r.x) * Math.min(1, dt * 16); r.y += (r.ty - r.y) * Math.min(1, dt * 16);
-    const info = roster[id] || { name: '?', color: '#888' };
-    const ghost = !r.a;
-    ctx.globalAlpha = ghost ? 0.4 : 1;
-    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(r.x, r.y + 12, 13, 5, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = info.color; ctx.strokeStyle = '#1b2530'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(r.x, r.y, 14, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(r.x + r.fx * 5, r.y - 3, 4.5, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1b2530'; ctx.beginPath(); ctx.arc(r.x + r.fx * 6.5, r.y - 3, 2, 0, 7); ctx.fill();
-    const mate = mates.includes(info.name);
-    label(info.name, r.x, r.y - 27, mate ? '#ff5a4a' : '#fff', 12);
-    ctx.globalAlpha = 1;
-    if (r.w) {
-      ctx.strokeStyle = '#d8a13b'; ctx.lineWidth = 3; ctx.beginPath();
-      const a0 = now / 200; ctx.arc(r.x, r.y, 21, a0, a0 + 4); ctx.stroke();
-      emoji('🔨', r.x + 18, r.y - 20, 16);
-    }
+  // build sites
+  for (const pl of map.plots) {
+    const [x, y] = cellOf(pl.x, pl.y);
+    const st = state.steps[pl.id];
+    cells[y * GW + x] = state.damaged[pl.id] ? '💥' : st >= 3 ? pl.icon : st > 0 ? '🏗️' : '🚧';
   }
 
   // fog of war
-  const me = P[myId];
-  if (me && state && myAlive()) {
+  if (alive && me) {
     const rad = state.lights && role === 'crew' ? 120 : 290;
-    const g = ctx.createRadialGradient(me.x, me.y, rad * 0.55, me.x, me.y, rad);
-    g.addColorStop(0, 'rgba(8,10,20,0)'); g.addColorStop(1, 'rgba(8,10,20,0.94)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, map.W, map.H);
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      if (Math.hypot((x + 0.5) * CELL - me.tx, (y + 0.5) * CELL - me.ty) > rad) cells[y * GW + x] = '⬛';
+    }
   }
 
-  // crisis markers (above fog so crew can find them)
-  if (state && state.crisis) {
-    const c = state.crisis, pulse = 1 + Math.sin(now / 150) * 0.12;
-    if (c.type === 'surge') {
-      ctx.strokeStyle = `rgba(255,220,80,${0.25 + Math.min(1, c.progress / 4) * 0.7})`; ctx.lineWidth = 4; ctx.setLineDash([10, 8]);
-      ctx.beginPath(); ctx.moveTo(c.points[0].x, c.points[0].y); ctx.lineTo(c.points[1].x, c.points[1].y); ctx.stroke(); ctx.setLineDash([]);
-    }
-    for (const pt of c.points) {
-      ctx.strokeStyle = '#ff5a4a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pt.x, pt.y, 44 * pulse, 0, 7); ctx.stroke();
-      emoji(c.type === 'fire' ? '🔥' : '⚡', pt.x, pt.y - 6, 36 * pulse);
-    }
+  // players (server only sends the ones we can see)
+  let selfIdx = -1;
+  const others = [];
+  for (const id in P) {
+    const r = P[id]; if (!r.seen || +id === myId) continue;
+    const [x, y] = cellOf(r.tx, r.ty);
+    const info = roster[id] || { name: '?', color: '#888' };
+    cells[y * GW + x] = r.a ? circle(info.color) : '👻';
+    others.push(`${circle(info.color)} ${info.name}${mates.includes(info.name) ? ' 😈' : ''}${r.w ? ' 🔨' : ''}${r.a ? '' : ' 👻'}`);
   }
-  if (state && state.lights) {
-    const g = S.generator, pulse = 1 + Math.sin(now / 200) * 0.12;
-    ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(g.x, g.y, 46 * pulse, 0, 7); ctx.stroke();
+  if (me) {
+    const [x, y] = cellOf(me.tx, me.ty);
+    selfIdx = y * GW + x;
+    cells[selfIdx] = alive ? circle((roster[myId] || {}).color) : '👻';
   }
-  // watchtower pings
-  pings = pings.filter(p => (p.t += dt) < 3.5);
-  for (const p of pings) {
-    ctx.strokeStyle = `rgba(255,200,60,${1 - p.t / 3.5})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, 10 + p.t * 40, 0, 7); ctx.stroke();
-  }
+
+  // always-visible alerts
+  if (state.crisis) for (const pt of state.crisis.points) { const [x, y] = cellOf(pt.x, pt.y); cells[y * GW + x] = state.crisis.type === 'fire' ? '🔥' : '⚡'; }
+  if (state.lights) { const g = map.stations.generator; const [x, y] = cellOf(g.x, g.y); cells[y * GW + x] = '💡'; }
+  for (const p of pings) { const [x, y] = cellOf(p.x, p.y); cells[y * GW + x] = '❗'; }
+
+  $('#grid').innerHTML = cells.map((c, i) => `<i${i === selfIdx ? ' class="me"' : ''}>${c}</i>`).join('');
+
+  const ri = roster[myId] || { name: '?', color: '#888' };
+  $('#legendNow').textContent = `You: ${circle(ri.color)} ${ri.name}${alive ? '' : ' (out — spectating)'}` + (others.length ? `   ·   Nearby: ${others.join('   ')}` : '   ·   Nobody in sight');
 
   // prompt
   const it = findInteract();
-  $('#prompt').innerHTML = '';
-  if (it && !mini && !meetingOpen) for (const l of it.lines) { const d = document.createElement('div'); d.textContent = l; $('#prompt').append(d); }
-  if (state && !myAlive()) { const d = document.createElement('div'); d.textContent = 'You are out. You can still watch — and keep quiet.'; $('#prompt').append(d); }
+  const pr = $('#prompt'); pr.innerHTML = '';
+  if (it && !mini && !meetingOpen) for (const l of it.lines) { const d = document.createElement('div'); d.textContent = l; pr.append(d); }
+  if (state && !alive) { const d = document.createElement('div'); d.textContent = 'You are out. You can still watch. Keep quiet!'; pr.append(d); }
 }
 
-let last = performance.now();
+let last = performance.now(), lastGrid = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (!$('#game').classList.contains('hidden')) { updateMini(dt); draw(dt, now); }
+  if (!$('#game').classList.contains('hidden')) {
+    updateMini(dt);
+    pings = pings.filter(p => (p.t += dt) < 3.5);
+    if (now - lastGrid > 60) { lastGrid = now; renderGrid(); }
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
