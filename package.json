@@ -1,0 +1,13 @@
+{
+  "name": "build-and-betray",
+  "version": "1.0.0",
+  "description": "A simple 2D multiplayer social-deduction game: build a settlement, find the saboteurs.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}
