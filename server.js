@@ -1,12 +1,13 @@
 'use strict';
 /**
- * BUILD & BETRAY — round-based, text-only, Mafia-style.
+ * BUILD & BETRAY — text-only, round-based, Mafia-style.
  * Run:  npm install && npm start   →  http://localhost:3000
  *
  * Every round:
- *   1. ACT     everyone secretly picks a location (saboteurs also pick a secret move)
- *   2. RESOLVE tasks / sabotage / repairs are worked out
- *   3. MEETING everyone learns what happened, talks, then votes someone out
+ *   1. ACT      everyone secretly picks a location, then is stuck there doing a minigame
+ *   2. RESOLVE  kills, sabotage, repairs and task progress are worked out
+ *   3. MEETING  everyone learns what happened, talks, then votes someone out
+ * Builders win when the task meter hits 100%.
  */
 const http = require('http');
 const fs = require('fs');
@@ -34,18 +35,19 @@ const wss = new WebSocketServer({ server });
 /* Config                                                              */
 /* ------------------------------------------------------------------ */
 const MIN_PLAYERS = 3, MAX_PLAYERS = 10;
-const MAX_ROUNDS = 15, START_HP = 10;
-const ACT_TIME = 35, DISCUSS_TIME = 45, VOTE_TIME = 30, RESULT_TIME = 7;
+const MAX_ROUNDS = 12;
+const ACT_TIME = 60, DISCUSS_TIME = 45, VOTE_TIME = 30, RESULT_TIME = 7;
+const MIN_TASK_MS = 1500;      // a minigame can't be finished faster than this
+const BROKEN_DECAY = 3;        // % of meter lost per unrepaired broken place each round
 const COLORS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠', '🟤', '⚪', '🌸', '🔘'];
 
 const LOCS = {
-  forest:   { name: 'Forest',     icon: '🌲', desc: 'Chop wood (+3 🪵)' },
-  quarry:   { name: 'Quarry',     icon: '⛏️', desc: 'Mine stone (+3 🪨)' },
-  farm:     { name: 'Farm',       icon: '🌾', desc: 'Harvest food (+3 🌾)' },
-  workshop: { name: 'Workshop',   icon: '🔨', desc: 'Build: uses 1 🪵 1 🪨 1 🌾 → +1 progress' },
-  store:    { name: 'Storehouse', icon: '📦', desc: 'Audit: count who arrived vs. who delivered' },
+  forest:   { name: 'Forest',     icon: '🌲', kind: 'chop',    desc: 'Chop wood (timing game)' },
+  quarry:   { name: 'Quarry',     icon: '⛏️', kind: 'mine',    desc: 'Mine stone (stop the cursor)' },
+  farm:     { name: 'Farm',       icon: '🌾', kind: 'harvest', desc: 'Harvest crops (click in order)' },
+  workshop: { name: 'Workshop',   icon: '🔨', kind: 'hammer',  desc: 'Build (arrow sequence)' },
+  store:    { name: 'Storehouse', icon: '📦', kind: 'crates',  desc: 'Sort crates (counting) + audit the round' },
 };
-const RES = { forest: 'wood', quarry: 'stone', farm: 'food' };
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -57,8 +59,8 @@ const toast = (p, text) => send(p, { t: 'toast', text });
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function genCode() { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let s = ''; for (let i = 0; i < 4; i++) s += c[Math.floor(Math.random() * c.length)]; return s; }
-const aliveCrew = room => list(room).filter(p => p.alive && p.role === 'crew');
-const need = room => Math.max(1, Math.min(2, aliveCrew(room).length));
+const need = room => Math.max(1, Math.min(2, list(room).filter(p => p.alive && p.role === 'crew').length));
+const activePlayers = room => list(room).filter(p => p.alive && p.connected);
 
 /* ------------------------------------------------------------------ */
 /* Rooms / lobby                                                       */
@@ -90,7 +92,7 @@ function join(ws, m) {
   const used = new Set(list(room).map(q => q.color));
   const p = {
     id: nextId++, ws, room, name, color: COLORS.find(c => !used.has(c)) || '🔵', host: room.players.size === 0,
-    connected: true, role: 'crew', alive: true, cd: {}, notes: [],
+    connected: true, role: 'crew', alive: true, cd: {}, notes: [], done: false, success: false,
   };
   ws.player = p; room.players.set(p.id, p);
   send(p, { t: 'joined', id: p.id, room: room.code });
@@ -118,8 +120,7 @@ function leave(ws) {
 /* ------------------------------------------------------------------ */
 function snap(room) {
   return {
-    round: room.round, maxRounds: MAX_ROUNDS, hp: room.hp, maxHp: START_HP,
-    progress: room.progress, goal: room.goal, stock: room.stock, broken: room.broken,
+    round: room.round, maxRounds: MAX_ROUNDS, meter: Math.round(room.meter), broken: room.broken,
     crisis: room.crisis ? { loc: room.crisis.loc, left: room.crisis.left, need: need(room) } : null,
     players: list(room).map(p => ({ id: p.id, name: p.name, color: p.color, alive: p.alive })),
   };
@@ -128,28 +129,27 @@ function snap(room) {
 function startGame(room) {
   const ps = shuffle(list(room));
   const nSab = ps.length >= 7 ? 2 : 1;
-  ps.forEach((p, i) => { p.role = i < nSab ? 'saboteur' : 'crew'; p.alive = true; p.cd = { break: 0, steal: 0, crisis: 2 }; p.notes = []; });
-  room.round = 0; room.hp = START_HP; room.progress = 0;
-  room.goal = Math.max(6, Math.min(20, 2 * (ps.length - nSab)));
-  room.stock = { wood: 2, stone: 2, food: 2 };
+  const crewN = ps.length - nSab;
+  ps.forEach((p, i) => { p.role = i < nSab ? 'saboteur' : 'crew'; p.alive = true; p.cd = { kill: 1, break: 0, crisis: 2 }; p.notes = []; });
+  room.round = 0; room.meter = 0;
+  room.per = 100 / Math.max(10, crewN * 5);          // % gained per completed task
   room.broken = { forest: false, quarry: false, farm: false, workshop: false, store: false };
   room.crisis = null; room.meeting = null; room.choices = {};
   const roster = list(room).map(p => ({ id: p.id, name: p.name, color: p.color }));
   const sabNames = ps.filter(p => p.role === 'saboteur').map(p => p.name);
   for (const p of list(room)) {
-    send(p, { t: 'start', meId: p.id, role: p.role, mates: p.role === 'saboteur' ? sabNames.filter(n => n !== p.name) : [], players: roster, locs: LOCS, goal: room.goal });
+    send(p, { t: 'start', meId: p.id, role: p.role, mates: p.role === 'saboteur' ? sabNames.filter(n => n !== p.name) : [], players: roster, locs: LOCS });
   }
   beginRound(room);
 }
 
 function beginRound(room) {
   room.round++;
-  if (room.round > MAX_ROUNDS) return endGame(room, 'saboteurs', 'Winter arrived before the settlement was finished.');
+  if (room.round > MAX_ROUNDS) return endGame(room, 'saboteurs', 'Winter arrived before the tasks were finished.');
   room.phase = 'act'; room.left = ACT_TIME; room.choices = {};
-  const total = list(room).filter(p => p.alive && p.connected).length;
-  for (const p of list(room)) {
-    send(p, { t: 'act', ...snap(room), left: room.left, total, cd: p.role === 'saboteur' ? p.cd : null });
-  }
+  for (const p of list(room)) { p.done = false; p.success = false; }
+  const total = activePlayers(room).length;
+  for (const p of list(room)) send(p, { t: 'act', ...snap(room), left: room.left, total, cd: p.role === 'saboteur' ? p.cd : null });
 }
 
 function endGame(room, winner, reason, events) {
@@ -163,9 +163,8 @@ function checkWin(room, events) {
   if (room.phase === 'over') return true;
   const alive = list(room).filter(p => p.alive);
   const sab = alive.filter(p => p.role === 'saboteur').length, crew = alive.length - sab;
-  if (room.progress >= room.goal) return endGame(room, 'crew', 'The settlement is complete!', events);
+  if (room.meter >= 100) return endGame(room, 'crew', 'The task meter reached 100%!', events);
   if (sab === 0) return endGame(room, 'crew', 'Every saboteur has been voted out!', events);
-  if (room.hp <= 0) return endGame(room, 'saboteurs', 'The settlement collapsed (health reached 0).', events);
   if (room.crisis && room.crisis.left <= 0) return endGame(room, 'saboteurs', 'The fire was not put out in time.', events);
   if (sab >= crew) return endGame(room, 'saboteurs', 'The saboteurs outnumber the builders.', events);
   return false;
@@ -183,47 +182,49 @@ function giveNote(room, p, title, text) {
 /* ------------------------------------------------------------------ */
 function resolveRound(room) {
   const all = list(room), alive = all.filter(p => p.alive);
-  const crew = alive.filter(p => p.role === 'crew'), sabs = alive.filter(p => p.role === 'saboteur');
-  const ch = p => room.choices[p.id] || { loc: null, act: 'fake' };
+  const ch = p => room.choices[p.id] || null;
+  const at = p => { const c = ch(p); return c ? c.loc : null; };
+  const isCrew = p => p.role === 'crew';
   const priv = {}; all.forEach(p => priv[p.id] = []);
   const events = [];
-  const hpStart = room.hp;
   const wasBroken = { ...room.broken };
   const crisisActive = room.crisis;
-  const newBroken = new Set();
+  const present = {};
+  for (const k in LOCS) present[k] = alive.filter(p => at(p) === k);
+  const killed = new Set(), newBroken = new Set();
   let newCrisis = null;
+  const meter0 = room.meter;
 
-  // 1. Sabotage: breaks and theft happen first
-  for (const s of sabs) {
+  // 1. Saboteur moves (kills first: victims can't run, they are stuck working)
+  for (const s of alive.filter(p => p.role === 'saboteur')) {
     const c = ch(s);
-    if (!c.loc) { priv[s.id].push('You stayed home this round.'); continue; }
+    if (!c) { priv[s.id].push('You stayed home this round.'); continue; }
     const L = LOCS[c.loc];
-    if (c.act === 'break') {
-      if (c.loc !== 'store' && !room.broken[c.loc] && s.cd.break <= 0) {
+    if (c.act === 'kill') {
+      const vics = present[c.loc].filter(p => isCrew(p) && !killed.has(p.id));
+      if (s.cd.kill <= 0 && vics.length) {
+        const v = pick(vics); killed.add(v.id); v.alive = false; s.cd.kill = 2;
+        events.push(`☠️ ${v.name} was found dead at the ${L.name}!`);
+        priv[s.id].push(`You killed ${v.name} at the ${L.name}.`);
+      } else priv[s.id].push(vics.length ? 'Your kill was not ready.' : `There was nobody to kill at the ${L.name}.`);
+    } else if (c.act === 'break') {
+      if (!room.broken[c.loc] && s.cd.break <= 0) {
         room.broken[c.loc] = true; newBroken.add(c.loc); s.cd.break = 2;
         events.push(`🔧 The ${L.name} broke down!`);
         priv[s.id].push(`You sabotaged the ${L.name}.`);
       } else priv[s.id].push('Your sabotage did not work.');
-    } else if (c.act === 'steal') {
-      const res = Object.keys(room.stock).sort((a, b) => room.stock[b] - room.stock[a])[0];
-      const amt = Math.min(3, room.stock[res]);
-      if (c.loc === 'store' && s.cd.steal <= 0 && amt > 0) {
-        room.stock[res] -= amt; room.hp -= 1; s.cd.steal = 3;
-        events.push(`📦 ${amt} ${res} vanished from the Storehouse!`);
-        priv[s.id].push(`You stole ${amt} ${res}.`);
-      } else priv[s.id].push('Your theft did not work.');
     } else if (c.act === 'crisis') {
-      if (!room.crisis && !newCrisis && s.cd.crisis <= 0) {
-        newCrisis = { loc: c.loc }; s.cd.crisis = 5;
-        priv[s.id].push(`You will start a fire at the ${L.name}.`);
-      } else priv[s.id].push('Your fire did not start.');
+      if (!room.crisis && !newCrisis && s.cd.crisis <= 0) { newCrisis = { loc: c.loc }; s.cd.crisis = 5; priv[s.id].push(`You will start a fire at the ${L.name}.`); }
+      else priv[s.id].push('Your fire did not start.');
     } else priv[s.id].push(`You pretended to work at the ${L.name}.`);
   }
+  const survivors = alive.filter(p => !killed.has(p.id));
+  const crewOK = loc => survivors.filter(p => isCrew(p) && at(p) === loc && p.success);
 
-  // 2. Repairs of places that were already broken at the start of the round
+  // 2. Repairs (places that were already broken when the round began)
   for (const k in LOCS) {
-    if (!wasBroken[k]) continue;
-    const reps = crew.filter(p => ch(p).loc === k);
+    if (!wasBroken[k] || (crisisActive && crisisActive.loc === k)) continue;
+    const reps = crewOK(k);
     if (reps.length) {
       room.broken[k] = false;
       events.push(`✅ The ${LOCS[k].name} was repaired.`);
@@ -233,86 +234,70 @@ function resolveRound(room) {
 
   // 3. Fire fighting
   if (crisisActive) {
-    const here = crew.filter(p => ch(p).loc === crisisActive.loc);
-    const n = need(room);
+    const here = crewOK(crisisActive.loc), n = need(room);
     if (here.length >= n) {
       room.crisis = null;
       events.push(`✅ The fire at the ${LOCS[crisisActive.loc].name} was put out!`);
       here.forEach(p => priv[p.id].push('You helped put out the fire.'));
     } else {
       crisisActive.left--;
-      here.forEach(p => priv[p.id].push(`The fire needs ${n} builders together, but only ${here.length} came.`));
+      here.forEach(p => priv[p.id].push(`The fire needs ${n} builder(s) together, but only ${here.length} finished.`));
     }
   }
 
-  // 4. Work (halted completely while a fire burns)
-  const deliv = { forest: 0, quarry: 0, farm: 0, workshop: 0 };
-  let built = 0;
-  const workers = [];
-  for (const p of crew) {
-    const loc = ch(p).loc;
+  // 4. Task progress (halted while a fire burned)
+  const completed = {};
+  const auditors = [];
+  for (const p of survivors.filter(isCrew)) {
+    const loc = at(p);
     if (!loc) { priv[p.id].push('You stayed home this round.'); continue; }
     const L = LOCS[loc];
-    if (crisisActive) { if (loc !== crisisActive.loc) priv[p.id].push('🔥 A fire is burning. All tasks are halted!'); continue; }
-    if (wasBroken[loc]) continue;
-    if (newBroken.has(loc)) { priv[p.id].push(`The ${L.name} broke down while you were working. Nothing done.`); continue; }
-    if (RES[loc]) {
-      room.stock[RES[loc]] = Math.min(30, room.stock[RES[loc]] + 3); deliv[loc]++;
-      priv[p.id].push(`You delivered +3 ${RES[loc]}.`);
-    } else workers.push([p, loc]);
+    if (crisisActive && loc === crisisActive.loc) continue;                    // handled by fire fighting
+    if (wasBroken[loc]) { if (!p.success) priv[p.id].push(`You did not finish repairing the ${L.name}.`); continue; }
+    if (crisisActive) { priv[p.id].push('🔥 A fire is burning. Tasks give no progress!'); continue; }
+    if (newBroken.has(loc)) { priv[p.id].push(`The ${L.name} broke down while you worked. No progress.`); continue; }
+    if (!p.success) { priv[p.id].push(`You did not finish the task at the ${L.name}.`); continue; }
+    completed[loc] = (completed[loc] || 0) + 1;
+    room.meter = Math.min(100, room.meter + room.per);
+    priv[p.id].push(`Task done at the ${L.name}: +${room.per.toFixed(1)}%.`);
+    if (loc === 'store') auditors.push(p);
   }
-  for (const [p, loc] of workers) {
-    if (loc === 'workshop') {
-      const s = room.stock;
-      if (s.wood >= 1 && s.stone >= 1 && s.food >= 1) { s.wood--; s.stone--; s.food--; room.progress++; built++; deliv.workshop++; priv[p.id].push('You built +1 progress.'); }
-      else priv[p.id].push('Not enough resources to build (needs 1 wood, 1 stone, 1 food).');
-    }
-  }
-  const arrived = {};
-  for (const k in LOCS) arrived[k] = alive.filter(p => ch(p).loc === k).length;
-  for (const [p, loc] of workers) {
-    if (loc === 'store') {
-      const lines = ['forest', 'quarry', 'farm', 'workshop'].map(k => {
-        const L = LOCS[k];
-        if (wasBroken[k] || newBroken.has(k)) return `${L.icon} ${L.name}: closed (broken)`;
-        return `${L.icon} ${L.name}: ${arrived[k]} arrived, ${deliv[k]} delivered`;
-      });
-      giveNote(room, p, 'Storehouse audit', lines.join('\n'));
-      priv[p.id].push('You audited the storehouse (see notebook).');
-    }
+  for (const p of auditors) {
+    const lines = Object.keys(LOCS).map(k => {
+      const L = LOCS[k];
+      if (wasBroken[k] || newBroken.has(k)) return `${L.icon} ${L.name}: closed (broken)`;
+      return `${L.icon} ${L.name}: ${present[k].length} arrived, ${completed[k] || 0} finished`;
+    });
+    giveNote(room, p, 'Storehouse audit', lines.join('\n'));
   }
 
-  // 5. Fire starts after work (takes effect next round)
+  // 5. Fire starts after the work (takes effect next round)
   if (newCrisis) {
     room.crisis = { loc: newCrisis.loc, left: 2 };
     events.push(`🔥 FIRE at the ${LOCS[newCrisis.loc].name}! All tasks stop until ${need(room)} builder(s) put it out together. You have 2 rounds!`);
   }
 
-  // 6. Damage over time
-  let drain = 0;
-  for (const k in room.broken) if (room.broken[k]) drain++;
-  if (crisisActive && room.crisis) drain += 2;
-  room.hp = Math.max(0, room.hp - drain);
-  if (built) events.push(`🏗️ Built ${built} this round. Progress ${room.progress}/${room.goal}.`);
-  if (hpStart - room.hp > 0) events.push(`❤️ Settlement health ${hpStart} → ${room.hp}.`);
-  const brokenNow = Object.keys(room.broken).filter(k => room.broken[k]).map(k => LOCS[k].name);
-  if (brokenNow.length) events.push(`🔧 Still broken: ${brokenNow.join(', ')} (−1 ❤️ each round).`);
-  if (!events.length) events.push('Nothing unusual happened.');
+  // 6. Broken places slowly eat the meter
+  const brokenNow = Object.keys(room.broken).filter(k => room.broken[k]);
+  if (brokenNow.length) room.meter = Math.max(0, room.meter - BROKEN_DECAY * brokenNow.length);
+  const delta = Math.round(room.meter - meter0);
+  events.push(`📊 Task meter: ${Math.round(room.meter)}% (${delta >= 0 ? '+' : ''}${delta}%)`);
+  if (brokenNow.length) events.push(`🔧 Still broken: ${brokenNow.map(k => LOCS[k].name).join(', ')} (−${BROKEN_DECAY}% each round).`);
+  if (!killed.size) events.push('Nobody died this round.');
 
-  // 7. Who saw whom (private)
-  for (const p of alive) {
-    const c = ch(p);
-    if (!c.loc) continue;
-    const names = alive.filter(q => q !== p && ch(q).loc === c.loc).map(q => q.name);
-    priv[p.id].push(names.length ? `👀 You saw ${names.join(', ')} at the ${LOCS[c.loc].name}.` : `👀 You were alone at the ${LOCS[c.loc].name}.`);
+  // 7. Private sightings: who was at your location
+  for (const p of survivors) {
+    const loc = at(p); if (!loc) continue;
+    const names = present[loc].filter(q => q !== p).map(q => q.name + (killed.has(q.id) ? ' ☠️' : ''));
+    priv[p.id].push(names.length ? `👀 You saw ${names.join(', ')} at the ${LOCS[loc].name}.` : `👀 You were alone at the ${LOCS[loc].name}.`);
   }
-  // ghosts see everything
-  const reveal = Object.keys(LOCS).map(k => `${LOCS[k].icon} ${LOCS[k].name}: ${alive.filter(p => ch(p).loc === k).map(p => p.name).join(', ') || '—'}`).join('\n');
-  for (const p of all) if (!p.alive && p.connected) giveNote(room, p, 'Full reveal (spectator)', reveal);
-  for (const p of alive) giveNote(room, p, `Round ${room.round}: what you saw`, priv[p.id].join('\n'));
+  const reveal = Object.keys(LOCS).map(k => `${LOCS[k].icon} ${LOCS[k].name}: ${present[k].map(p => p.name + (killed.has(p.id) ? ' ☠️' : '')).join(', ') || '—'}`).join('\n');
+  for (const p of all) {
+    if (!p.alive && p.connected) giveNote(room, p, 'Full reveal (spectator)', reveal);
+    else if (p.alive) giveNote(room, p, `Round ${room.round}: what you saw`, priv[p.id].join('\n'));
+  }
 
   for (const s of all) for (const k in s.cd) s.cd[k] = Math.max(0, s.cd[k] - 1);
-
   if (checkWin(room, events)) return;
   startMeeting(room, events);
 }
@@ -322,7 +307,7 @@ function resolveRound(room) {
 /* ------------------------------------------------------------------ */
 function startMeeting(room, events) {
   room.phase = 'meeting';
-  room.meeting = { id: ++room.meetingId, stage: 'discuss', left: DISCUSS_TIME, votes: {}, ready: new Set(), result: null, events, acc: 0 };
+  room.meeting = { id: ++room.meetingId, stage: 'discuss', left: DISCUSS_TIME, votes: {}, ready: new Set(), result: null, events };
   sendMeeting(room);
 }
 function sendMeeting(room) {
@@ -354,7 +339,7 @@ function tally(room) {
 }
 function tickMeeting(room, dt) {
   const m = room.meeting; if (!m) return;
-  const alive = list(room).filter(p => p.alive && p.connected);
+  const alive = activePlayers(room);
   m.left -= dt;
   if (m.stage === 'discuss') {
     if (m.left <= 0 || (alive.length && alive.every(p => m.ready.has(p.id)))) { m.stage = 'vote'; m.left = VOTE_TIME; sendMeeting(room); }
@@ -377,8 +362,8 @@ setInterval(() => {
   for (const room of rooms.values()) {
     if (room.phase === 'act') {
       room.left -= dt;
-      const alive = list(room).filter(p => p.alive && p.connected);
-      if (room.left <= 0 || (alive.length && alive.every(p => room.choices[p.id]))) resolveRound(room);
+      const act = activePlayers(room);
+      if (room.left <= 0 || (act.length && act.every(p => p.done))) resolveRound(room);
     } else if (room.phase === 'meeting') tickMeeting(room, dt);
   }
 }, 250);
@@ -386,6 +371,11 @@ setInterval(() => {
 /* ------------------------------------------------------------------ */
 /* Messages                                                            */
 /* ------------------------------------------------------------------ */
+function progressMsg(room) {
+  const act = activePlayers(room);
+  bcast(room, { t: 'progress', done: act.filter(p => p.done).length, total: act.length });
+}
+
 function handle(ws, m) {
   if (m.t === 'join') return join(ws, m);
   const p = ws.player; if (!p) return;
@@ -405,23 +395,37 @@ function handle(ws, m) {
         sendLobby(room);
       }
       break;
-    case 'pick': {
+
+    case 'pick': {                       // choosing a location is final: you can't move while working
       if (room.phase !== 'act' || !p.alive) return;
+      if (room.choices[p.id] || p.done) return toast(p, 'You are busy. You cannot move while working!');
       const loc = String(m.loc);
       if (!LOCS[loc]) return;
       let act = 'work';
       if (p.role === 'saboteur') {
-        act = ['fake', 'break', 'steal', 'crisis'].includes(m.act) ? m.act : 'fake';
-        if (act === 'break' && (loc === 'store' || room.broken[loc])) return toast(p, 'You can only break a working place (not the Storehouse).');
-        if (act === 'steal' && loc !== 'store') return toast(p, 'You can only steal at the Storehouse.');
+        act = ['fake', 'kill', 'break', 'crisis'].includes(m.act) ? m.act : 'fake';
+        if (act === 'break' && room.broken[loc]) return toast(p, 'That place is already broken.');
         if (act === 'crisis' && room.crisis) return toast(p, 'A fire is already burning.');
         if (act !== 'fake' && p.cd[act] > 0) return toast(p, `That move is not ready (${p.cd[act]} round(s)).`);
       }
-      room.choices[p.id] = { loc, act };
-      send(p, { t: 'myChoice', loc, act: p.role === 'saboteur' ? act : 'fake' });
-      bcast(room, { t: 'picked', n: Object.keys(room.choices).length, total: list(room).filter(q => q.alive && q.connected).length });
+      room.choices[p.id] = { loc, act, at: Date.now() };
+      const kind = room.crisis && room.crisis.loc === loc ? 'bucket' : room.broken[loc] ? 'rewire' : LOCS[loc].kind;
+      send(p, { t: 'myChoice', loc, act: p.role === 'saboteur' ? act : 'fake', kind });
       break;
     }
+    case 'stay':
+      if (room.phase !== 'act' || !p.alive || room.choices[p.id] || p.done) return;
+      p.done = true; progressMsg(room);
+      break;
+    case 'taskDone': {
+      if (room.phase !== 'act' || !p.alive || p.done) return;
+      const c = room.choices[p.id]; if (!c) return;
+      p.done = true;
+      p.success = !!m.ok && Date.now() - c.at >= MIN_TASK_MS;
+      progressMsg(room);
+      break;
+    }
+
     case 'chat': {
       if (!room.meeting || !p.alive) return;
       const text = String(m.text || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 160);
