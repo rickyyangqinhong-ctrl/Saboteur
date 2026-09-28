@@ -9,19 +9,21 @@
 * { box-sizing: border-box; }
 html, body { margin:0; background:var(--bg); color:var(--ink); font-family:"Trebuchet MS","Segoe UI",Verdana,sans-serif; line-height:1.4; }
 h1,h2,h3 { font-family:Rockwell,Georgia,serif; margin:0 0 8px; }
+h3 { font-size:1.05rem; }
 .hidden { display:none !important; }
-button,input { font:inherit; }
+button,input,select { font:inherit; }
 button { background:var(--panel); color:var(--ink); border:2px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; }
 button:hover:not(:disabled) { border-color:var(--gold); }
 button:disabled { opacity:.4; cursor:not-allowed; }
 button.primary { background:var(--gold); color:#2a1d05; border-color:var(--gold); font-weight:700; }
-input { width:100%; background:#0f151b; color:var(--ink); border:2px solid var(--line); border-radius:8px; padding:8px 12px; }
+button.danger { border-color:var(--red); background:#3a1f1c; }
+input, select { width:100%; background:#0f151b; color:var(--ink); border:2px solid var(--line); border-radius:8px; padding:8px 12px; }
 :focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
 .card { background:var(--panel); border:2px solid var(--line); border-radius:14px; padding:22px; }
 .center { min-height:100vh; display:grid; place-items:center; padding:16px; }
 .narrow { width:min(460px,100%); }
 .mute { color:var(--mute); }
-.row { display:flex; gap:8px; }
+.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .err { color:#ff8b7d; min-height:1.2em; }
 label { display:block; color:var(--mute); font-size:.9rem; margin-bottom:10px; }
 .code { font-size:3rem; letter-spacing:8px; color:var(--gold); font-family:Rockwell,Georgia,serif; }
@@ -30,42 +32,40 @@ ul.plain li { background:#0f151b; border-radius:8px; padding:7px 12px; display:f
 .right { margin-left:auto; color:var(--gold); }
 details { color:var(--mute); margin-top:12px; font-size:.92rem; } summary { cursor:pointer; color:var(--ink); }
 
-/* game */
 #top { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; padding:10px 14px; background:var(--panel); border-bottom:2px solid var(--line); }
-.bar { display:inline-block; width:160px; height:14px; background:#0f151b; border-radius:7px; overflow:hidden; vertical-align:middle; }
+.bar { display:inline-block; width:180px; height:14px; background:#0f151b; border-radius:7px; overflow:hidden; vertical-align:middle; }
 .bar i { display:block; height:100%; background:var(--green); transition:width .3s; }
 #roleChip { margin-left:auto; padding:3px 12px; border-radius:8px; background:var(--green); font-weight:700; }
 #roleChip.sab { background:var(--red); }
-#alerts { padding:0 14px; }
-#alerts div { margin-top:8px; padding:8px 12px; border-radius:8px; background:#3a1f1c; border:2px solid var(--red); }
-.cols { display:grid; grid-template-columns:1fr 320px; gap:14px; padding:14px; align-items:start; }
-@media (max-width:820px) { .cols { grid-template-columns:1fr; } }
-.timer { color:var(--gold); font-weight:700; }
-.locs { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; margin:12px 0; }
-.loc { text-align:left; padding:12px; }
-.li { font-size:2rem; } .ln { font-weight:700; } .ld { color:var(--mute); font-size:.85rem; }
-.tag { margin-top:6px; font-size:.82rem; color:#ffb1a6; }
-.acts { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
-.acts button.sel { border-color:var(--red); background:#4a2320; }
+#alerts div { margin:8px 14px 0; padding:8px 12px; border-radius:8px; background:#3a1f1c; border:2px solid var(--red); }
+.cols { display:grid; grid-template-columns:1fr 300px; gap:14px; padding:14px; align-items:start; }
+@media (max-width:860px) { .cols { grid-template-columns:1fr; } }
+.place { font-size:1.5rem; font-family:Rockwell,Georgia,serif; }
 .box { background:#0f151b; border-radius:10px; padding:10px 12px; margin:10px 0; white-space:pre-line; }
-.note { background:#0f151b; border-radius:8px; padding:8px 10px; margin-bottom:8px; white-space:pre-line; font-size:.9rem; }
-.note b { color:var(--gold); }
-.note button { margin-top:6px; padding:2px 10px; font-size:.8rem; }
+.person { display:flex; align-items:center; gap:8px; padding:5px 0; }
+.person button { margin-left:auto; padding:3px 12px; }
+.badge { font-size:.8rem; color:var(--gold); }
+.sab-note { color:#ff8b7d; }
+.go { display:flex; flex-wrap:wrap; gap:8px; }
+.task { display:flex; gap:8px; align-items:center; margin:4px 0; }
+.task.done { color:var(--mute); text-decoration:line-through; }
+#evLog { max-height:180px; overflow:auto; font-size:.9rem; display:grid; gap:3px; }
+#evLog .big { color:#ffb1a6; font-weight:700; }
+.note { background:#0f151b; border-radius:8px; padding:6px 10px; margin-bottom:6px; font-size:.88rem; }
+.note button { margin-top:4px; padding:1px 10px; font-size:.78rem; }
 .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-@media (max-width:820px) { .two { grid-template-columns:1fr; } }
+@media (max-width:860px) { .two { grid-template-columns:1fr; } }
 .mp { display:flex; align-items:center; gap:8px; background:#0f151b; border-radius:8px; padding:6px 10px; margin-bottom:6px; }
 .mp.dead { opacity:.4; text-decoration:line-through; }
 .mp button { margin-left:auto; padding:3px 12px; } .mp button.sel { background:var(--gold); color:#2a1d05; border-color:var(--gold); }
 .mp .st { margin-left:auto; color:var(--mute); font-size:.8rem; }
 #chatLog { height:220px; overflow:auto; background:#0f151b; border-radius:8px; padding:8px; display:grid; gap:4px; align-content:start; font-size:.92rem; }
-#chatLog .clue { background:#2a3a4d; border-radius:6px; padding:4px 6px; white-space:pre-line; }
+#chatLog .clue { background:#2a3a4d; border-radius:6px; padding:4px 6px; }
 #chatLog .sys { color:var(--mute); font-style:italic; }
 .overlay { position:fixed; inset:0; background:#000b; display:grid; place-items:center; padding:12px; z-index:10; }
 #toasts { position:fixed; top:10px; right:10px; display:grid; gap:6px; z-index:20; max-width:320px; pointer-events:none; }
 .toast { background:#000d; border-left:4px solid var(--gold); padding:7px 12px; border-radius:6px; font-size:.92rem; }
-.sabtxt { color:#ff8b7d; }
 
-/* minigames */
 #miniLine { font-size:1.6rem; line-height:1.5; white-space:pre; min-height:3em; padding:10px 14px; margin:10px 0 4px; background:#0f151b; border-radius:8px; text-align:center; overflow-x:auto; }
 #miniLine.good { background:#1d3a2a; } #miniLine.bad { background:#4a2320; }
 #miniGrid { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; margin:10px 0; font-size:1.5rem; max-width:480px; }
@@ -80,20 +80,21 @@ details { color:var(--mute); margin-top:12px; font-size:.92rem; } summary { curs
 <main id="menu" class="center">
   <div class="card narrow">
     <h1>Build &amp; Betray</h1>
-    <p class="mute">Finish the tasks together. One of you is secretly killing and sabotaging.</p>
+    <p class="mute">Among Us, with no map. Finish your tasks. One of you is secretly killing.</p>
     <label>Your name <input id="inName" maxlength="12" placeholder="e.g. Mira" autocomplete="off"></label>
     <div class="row"><button id="btnCreate" class="primary" style="flex:1">Create room</button></div>
     <p class="mute" style="text-align:center">or join friends</p>
-    <div class="row"><input id="inRoom" maxlength="5" placeholder="Room code" autocomplete="off"><button id="btnJoin">Join</button></div>
+    <div class="row" style="flex-wrap:nowrap"><input id="inRoom" maxlength="5" placeholder="Room code" autocomplete="off"><button id="btnJoin">Join</button></div>
     <p id="menuMsg" class="err"></p>
     <details>
       <summary>How to play</summary>
       <ul>
-        <li>Each round, everyone <b>secretly picks a location</b>. Once you pick, you are <b>stuck there</b> doing that place's minigame. You cannot move while working.</li>
-        <li>Every finished task fills the <b>task meter</b>. At <b>100%</b> the builders win.</li>
-        <li><b>Saboteurs</b> (secret) pick a location too, plus a move: <b>kill</b> a builder at that location, <b>break</b> the place (tasks there stop until someone repairs it), or <b>start a fire</b> (all tasks stop until builders put it out together).</li>
-        <li>After every round there is a <b>meeting</b>: bodies are announced, but you only know who you saw at your own location. Compare notes, then vote someone out.</li>
-        <li><b>Saboteurs win</b> if they equal the builders, a fire burns for 2 rounds, or 12 rounds pass.</li>
+        <li>You travel between locations (takes a few seconds) and see who is there.</li>
+        <li>Every builder gets <b>their own list of tasks</b>, each at a specific location with its own minigame. Finish all builders' tasks (meter 100%) to win. You can't move while working.</li>
+        <li><b>Saboteurs</b> get a fake task list. They can pretend to work, <b>kill</b> a builder in the same location (then they're locked there for a few seconds), or <b>sabotage</b>: break a place or start a fire that halts all tasks.</li>
+        <li>Bodies stay where they fell. Anyone in that location can <b>report</b> it. You can also ring the emergency bell at the 📣 Plaza (once each).</li>
+        <li>Meetings: discuss, share limited clues from your notebook, then vote someone out.</li>
+        <li>Meter check: when someone finishes a task, the meter should rise. If it doesn't...</li>
       </ul>
     </details>
   </div>
@@ -114,81 +115,87 @@ details { color:var(--mute); margin-top:12px; font-size:.92rem; } summary { curs
 <section id="game" class="hidden">
   <header id="top">
     <b>Build &amp; Betray</b>
-    <span id="rnd"></span>
     <span>📊 Task meter <span class="bar"><i id="meterFill"></i></span> <b id="meterVal"></b></span>
     <span id="roleChip"></span>
   </header>
   <div id="alerts"></div>
 
   <div class="cols">
-    <section>
-      <!-- ACT -->
-      <div id="actView">
-        <h2>Round <span id="actRound"></span></h2>
-        <div>Time left: <span class="timer" id="actTimer"></span> · <span id="picked" class="mute"></span></div>
-
-        <!-- pick a location -->
-        <div id="pickView">
-          <div id="sabBox" class="hidden">
-            <h3 class="sabtxt">1) Choose your secret move</h3>
-            <div id="acts" class="acts"></div>
-            <p class="mute" id="actHint" style="margin-top:0"></p>
-            <h3 class="sabtxt">2) Choose where to go</h3>
-          </div>
-          <h3 id="pickTitle">Where will you go? You can't leave once you start.</h3>
-          <div id="locs" class="locs"></div>
-          <button id="btnStay">Stay home this round</button>
-        </div>
-
-        <!-- doing the minigame -->
-        <div id="taskView" class="hidden">
-          <h3 id="miniTitle"></h3>
-          <div id="taskWhere" class="mute"></div>
-          <div id="miniLine"></div>
-          <div id="miniGrid" class="hidden"></div>
-          <div id="miniBtns"></div>
-          <p id="miniHelp" class="mute"></p>
-          <button id="btnGiveUp">Give up (no progress)</button>
-        </div>
-
-        <!-- waiting -->
-        <div id="waitView" class="hidden">
-          <div id="waitMsg" class="box"></div>
-        </div>
+    <!-- PLAY -->
+    <section id="playView">
+      <div id="whereBox">
+        <div class="place" id="place"></div>
+        <div id="status" class="mute"></div>
       </div>
 
-      <!-- MEETING -->
-      <div id="meetView" class="hidden">
-        <div class="row" style="align-items:center">
-          <div>
-            <h2 id="mtStage"></h2>
-            <div>Time left: <span class="timer" id="mtTimer"></span></div>
+      <div id="taskView" class="hidden">
+        <h3 id="miniTitle"></h3>
+        <div id="miniLine"></div>
+        <div id="miniGrid" class="hidden"></div>
+        <div id="miniBtns"></div>
+        <p id="miniHelp" class="mute"></p>
+        <button id="btnGiveUp">Stop working</button>
+      </div>
+
+      <div id="hereView">
+        <div id="bodies"></div>
+        <h3>👥 Here with you</h3>
+        <div id="here" class="box"></div>
+
+        <div id="hereTasks"></div>
+
+        <h3>🚶 Go to</h3>
+        <div id="goBtns" class="go"></div>
+        <div id="plazaBox" class="hidden" style="margin-top:8px"><button id="btnBell" class="danger">📣 Ring the emergency bell (1 use)</button></div>
+
+        <div id="sabPanel" class="hidden box">
+          <h3 class="sab-note">😈 Sabotage</h3>
+          <div class="row">
+            <select id="sabLoc" style="width:auto"></select>
+            <button id="btnBreak">🔧 Break</button>
+            <button id="btnFire">🔥 Fire</button>
           </div>
-          <button id="btnReady" class="hidden" style="margin-left:auto">Ready to vote</button>
+          <div id="sabInfo" class="mute" style="margin-top:6px"></div>
         </div>
-        <h3>What happened</h3>
-        <div id="events" class="box"></div>
-        <div class="two">
-          <div>
-            <h3>Players</h3>
-            <div id="mtPlayers"></div>
-            <div id="mtResult" class="box hidden"></div>
-          </div>
-          <div>
-            <h3>Chat</h3>
-            <div id="chatLog"></div>
-            <div class="row" style="margin-top:8px">
-              <input id="chatInput" maxlength="160" placeholder="Say something…" autocomplete="off">
-              <button id="btnChat">Send</button>
-            </div>
+
+        <div id="ghostBox" class="hidden box"></div>
+      </div>
+    </section>
+
+    <!-- MEETING -->
+    <section id="meetView" class="hidden">
+      <div class="row">
+        <div>
+          <h2 id="mtStage" style="margin:0"></h2>
+          <div>Time left: <b id="mtTimer" style="color:var(--gold)"></b></div>
+        </div>
+        <button id="btnReady" class="hidden" style="margin-left:auto">Ready to vote</button>
+      </div>
+      <div id="mtReason" class="box"></div>
+      <div class="two">
+        <div>
+          <h3>Players</h3>
+          <div id="mtPlayers"></div>
+          <div id="mtResult" class="box hidden"></div>
+        </div>
+        <div>
+          <h3>Chat</h3>
+          <div id="chatLog"></div>
+          <div class="row" style="margin-top:8px;flex-wrap:nowrap">
+            <input id="chatInput" maxlength="160" placeholder="Say something…" autocomplete="off">
+            <button id="btnChat">Send</button>
           </div>
         </div>
       </div>
     </section>
 
     <aside>
+      <h3>✅ My tasks</h3>
+      <div id="myTasks" class="box"></div>
+      <h3>📰 What's happening</h3>
+      <div id="evLog" class="box"></div>
       <h3>📓 Notebook</h3>
-      <p class="mute" style="margin-top:0">Private. Share clues in meetings.</p>
+      <p class="mute" style="margin-top:0" id="nbInfo">You only remember recent sightings. In a meeting you can share 2 of them and your route once.</p>
       <div id="noteList"></div>
     </aside>
   </div>
@@ -203,7 +210,6 @@ details { color:var(--mute); margin-top:12px; font-size:.92rem; } summary { curs
 <div id="over" class="overlay hidden">
   <div class="card narrow" style="text-align:center;max-height:92vh;overflow:auto">
     <h2 id="overTitle"></h2><p id="overReason"></p>
-    <div id="overEvents" class="box" style="text-align:left"></div>
     <ul id="overList" class="plain" style="text-align:left"></ul>
     <button id="btnBack" class="primary hidden">Back to lobby</button>
     <p id="overWait" class="mute hidden">Waiting for the host…</p>
@@ -216,12 +222,10 @@ details { color:var(--mute); margin-top:12px; font-size:.92rem; } summary { curs
 const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
 const show = id => ['#menu', '#lobby', '#game'].forEach(s => $(s).classList.toggle('hidden', s !== id));
-const rnd = (a, b) => a + Math.random() * (b - a);
 
 let ws = null, myId = null, isHost = false;
-let role = 'crew', mates = [], LOCS = {}, G = null;
-let selAct = 'fake';
-let notes = [], endAt = 0, phase = 'act', meetingId = -1, mini = null;
+let role = 'crew', mates = [], LOCS = {}, V = null;
+let notes = [], mini = null, inMeeting = false, meetingId = -1, endAt = 0, shares = { left: 2, route: true };
 const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
 
 /* ---------- connection ---------- */
@@ -229,7 +233,7 @@ function connect(then) {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
   ws.onopen = then;
   ws.onmessage = e => onMsg(JSON.parse(e.data));
-  ws.onclose = () => { $('#menuMsg').textContent = 'Disconnected from the server.'; show('#menu'); hideOverlays(); mini = null; };
+  ws.onclose = () => { $('#menuMsg').textContent = 'Disconnected from the server.'; show('#menu'); $('#reveal').classList.add('hidden'); $('#over').classList.add('hidden'); mini = null; };
 }
 function joinRoom(create) {
   const name = $('#inName').value.trim() || 'Builder', room = $('#inRoom').value.trim();
@@ -245,8 +249,8 @@ $('#btnJoin').onclick = () => joinRoom(false);
 $('#inRoom').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(false); });
 $('#btnStart').onclick = () => send({ t: 'start' });
 $('#btnBack').onclick = () => send({ t: 'toLobby' });
-function hideOverlays() { $('#reveal').classList.add('hidden'); $('#over').classList.add('hidden'); }
 function toast(text) { const d = el('div', 'toast', text); $('#toasts').append(d); setTimeout(() => d.remove(), 4000); }
+function logEv(text, big) { const d = el('div', big ? 'big' : '', text); const l = $('#evLog'); l.append(d); while (l.children.length > 30) l.firstChild.remove(); l.scrollTop = l.scrollHeight; if (big) toast(text); }
 
 /* ---------- messages ---------- */
 function onMsg(m) {
@@ -255,20 +259,22 @@ function onMsg(m) {
     case 'joined': myId = m.id; break;
     case 'host': isHost = true; $('#btnBack').classList.remove('hidden'); $('#overWait').classList.add('hidden'); break;
     case 'toast': toast(m.text); break;
+    case 'ev': logEv(m.text, m.big); break;
     case 'lobby': renderLobby(m); break;
     case 'start': onStart(m); break;
-    case 'act': onAct(m); break;
-    case 'myChoice': onMyChoice(m); break;
-    case 'progress': $('#picked').textContent = `${m.done}/${m.total} finished`; break;
-    case 'note': notes.push(m); renderNotes(); break;
+    case 'view': V = m; if (!inMeeting) renderView(); break;
+    case 'taskOk': startMini(m.kind, m.title); break;
+    case 'dead': logEv('☠️ You were killed! You are a ghost now: you can still finish your tasks.', true); break;
+    case 'note': notes.push(m); if (notes.length > 12) notes.shift(); renderNotes(); break;
     case 'meeting': onMeeting(m); break;
+    case 'meetingEnd': inMeeting = false; $('#meetView').classList.add('hidden'); $('#playView').classList.remove('hidden'); notes = []; renderNotes(); if (V) renderView(); break;
     case 'chat': addChat(m); break;
     case 'over': onOver(m); break;
   }
 }
 
 function renderLobby(m) {
-  show('#lobby'); hideOverlays(); mini = null;
+  show('#lobby'); $('#reveal').classList.add('hidden'); $('#over').classList.add('hidden'); mini = null;
   $('#lobbyCode').textContent = m.room;
   const me = m.players.find(p => p.id === myId); isHost = !!(me && me.host);
   const ul = $('#lobbyList'); ul.innerHTML = '';
@@ -283,84 +289,139 @@ function renderLobby(m) {
 }
 
 function onStart(m) {
-  role = m.role; mates = m.mates; LOCS = m.locs; myId = m.meId; notes = []; G = null; selAct = 'fake'; meetingId = -1; mini = null;
-  hideOverlays(); show('#game');
+  role = m.role; mates = m.mates; LOCS = m.locs; myId = m.meId; V = null; notes = []; mini = null; inMeeting = false; meetingId = -1;
+  $('#over').classList.add('hidden'); show('#game');
+  $('#evLog').innerHTML = ''; $('#meetView').classList.add('hidden'); $('#playView').classList.remove('hidden'); $('#taskView').classList.add('hidden');
   const sab = role === 'saboteur';
   $('#roleChip').className = sab ? 'sab' : '';
   $('#roleChip').textContent = sab ? `😈 Saboteur${mates.length ? ' (with ' + mates.join(', ') + ')' : ''}` : '🛠️ Builder';
   $('#revTitle').textContent = sab ? 'You are a SABOTEUR 😈' : 'You are a BUILDER 🛠️';
   $('#revSub').textContent = sab
-    ? `Kill builders, break places, start fires. Pretend to work so nobody suspects you.${mates.length ? ' Your partner: ' + mates.join(', ') + '.' : ''}`
-    : 'Finish tasks to fill the meter to 100%. Stay in groups, and work out who the saboteur is.';
+    ? `Your task list is fake: pretend to work. Kill builders when nobody is watching, or sabotage.${mates.length ? ' Partner: ' + mates.join(', ') + '.' : ''}`
+    : 'Finish your tasks. Watch who is where, report bodies, and vote out the saboteur.';
   $('#reveal').classList.remove('hidden');
+  // sabotage location list
+  const sel = $('#sabLoc'); sel.innerHTML = '';
+  for (const k of Object.keys(LOCS)) if (k !== 'plaza') { const o = el('option', '', `${LOCS[k].icon} ${LOCS[k].name}`); o.value = k; sel.append(o); }
+  $('#btnBreak').onclick = () => send({ t: 'sabotage', kind: 'break', loc: sel.value });
+  $('#btnFire').onclick = () => send({ t: 'sabotage', kind: 'fire', loc: sel.value });
   renderNotes();
 }
 $('#reveal').onclick = () => $('#reveal').classList.add('hidden');
 
-/* ---------- status ---------- */
-const myAlive = () => { const p = G && G.players.find(q => q.id === myId); return !!(p && p.alive); };
-function renderStatus() {
-  $('#rnd').textContent = `Round ${G.round}/${G.maxRounds}`;
-  $('#meterFill').style.width = G.meter + '%';
-  $('#meterVal').textContent = G.meter + '%';
-  const a = $('#alerts'); a.innerHTML = '';
-  if (G.crisis) a.append(el('div', '', `🔥 FIRE at the ${LOCS[G.crisis.loc].name}! Tasks give no progress. ${G.crisis.need} builder(s) must go there and finish the fire minigame in the same round. Rounds left: ${G.crisis.left}.`));
-  const br = Object.keys(G.broken).filter(k => G.broken[k]).map(k => LOCS[k].name);
-  if (br.length) a.append(el('div', '', `🔧 Broken: ${br.join(', ')}. Tasks there give no progress. Go there to repair (−3% meter per broken place each round).`));
-}
-function setView(v) { ['pick', 'task', 'wait'].forEach(x => $('#' + x + 'View').classList.toggle('hidden', x !== v)); }
+/* ---------- main view ---------- */
+function renderView() {
+  if (!V) return;
+  const me = V.me;
+  // meter + alerts
+  $('#meterFill').style.width = V.meter + '%'; $('#meterVal').textContent = V.meter + '%';
+  const al = $('#alerts'); al.innerHTML = '';
+  if (V.fire) al.append(el('div', '', `🔥 FIRE at the ${LOCS[V.fire.loc].name}! All tasks halted. Builders finished the fire minigame: ${V.fire.got}/${V.fire.need}. Time left: ${V.fire.left}s`));
+  const br = Object.keys(V.broken).filter(k => V.broken[k]).map(k => LOCS[k].name);
+  if (br.length) al.append(el('div', '', `🔧 Broken: ${br.join(', ')}. Tasks there are blocked until repaired.`));
 
-/* ---------- act phase ---------- */
-function onAct(m) {
-  G = m; phase = 'act'; mini = null; selAct = 'fake';
-  endAt = Date.now() + m.left * 1000;
-  $('#actRound').textContent = m.round;
-  $('#picked').textContent = `0/${m.total} finished`;
-  $('#actView').classList.remove('hidden'); $('#meetView').classList.add('hidden');
-  renderStatus(); renderNotes();
-  if (myAlive()) { setView('pick'); renderPick(); }
-  else { setView('wait'); $('#waitMsg').textContent = '👻 You are out. Read your notebook: it shows where everyone went each round.'; }
-}
+  // my tasks
+  const mt = $('#myTasks'); mt.innerHTML = '';
+  for (const t of V.tasks) mt.append(el('div', 'task' + (t.done ? ' done' : ''), `${t.done ? '✅' : '⬜'} ${LOCS[t.loc].icon} ${t.name} (${LOCS[t.loc].name})`));
 
-function actOk(k) { return k === 'fake' || !(G.cd && G.cd[k] > 0); }
-function renderPick() {
-  const box = $('#locs'); box.innerHTML = '';
-  for (const k of Object.keys(LOCS)) {
-    const L = LOCS[k];
-    const b = el('button', 'loc');
-    b.disabled = selAct === 'break' && G.broken[k];
-    b.append(el('div', 'li', L.icon), el('div', 'ln', L.name), el('div', 'ld', L.desc));
-    if (G.broken[k]) b.append(el('div', 'tag', '🔧 Broken. You would do a repair minigame here.'));
-    if (G.crisis && G.crisis.loc === k) b.append(el('div', 'tag', `🔥 Fire! Needs ${G.crisis.need} builder(s) together.`));
-    b.onclick = () => send({ t: 'pick', loc: k, act: role === 'saboteur' ? selAct : 'work' });
-    box.append(b);
+  // busy / minigame
+  if (!me.busy && mini) { mini = null; }
+  $('#taskView').classList.toggle('hidden', !mini);
+  $('#hereView').classList.toggle('hidden', !!mini);
+
+  // where
+  if (me.dest) { $('#place').textContent = `🚶 Walking to ${LOCS[me.dest].icon} ${LOCS[me.dest].name}…`; $('#status').textContent = `Arriving in ${me.travelLeft}s`; }
+  else { $('#place').textContent = `📍 ${LOCS[me.loc].icon} ${LOCS[me.loc].name}`; $('#status').textContent = me.alive ? (me.lockLeft > 0 ? `🔒 You are locked here for ${me.lockLeft}s` : (me.busy ? '🔨 Working…' : '')) : '👻 You are a ghost. Nobody can see you.'; }
+  if (mini) return;
+
+  const here = me.loc;
+  const inTransit = !!me.dest, locked = me.lockLeft > 0, alive = me.alive;
+
+  // bodies + report
+  const bd = $('#bodies'); bd.innerHTML = '';
+  if (!inTransit && V.bodies.length) {
+    const b = el('div', 'box'); b.append(el('div', 'sab-note', `☠️ ${V.bodies.map(x => x.name).join(', ')}'s body is here!`));
+    if (alive) { const r = el('button', 'danger', '🚨 Report body'); r.onclick = () => send({ t: 'report' }); b.append(r); }
+    bd.append(b);
   }
-  const sb = $('#sabBox'); sb.classList.toggle('hidden', role !== 'saboteur');
-  const acts = $('#acts'); acts.innerHTML = '';
-  if (role === 'saboteur') {
-    const defs = [['fake', '🎭 Pretend to work'], ['kill', '🔪 Kill a builder here'], ['break', '🔧 Break this place'], ['crisis', '🔥 Start a fire']];
-    for (const [k, label] of defs) {
-      const cd = (G.cd && G.cd[k]) || 0;
-      const b = el('button', selAct === k ? 'sel' : '', label + (cd > 0 ? ` (ready in ${cd})` : ''));
-      b.disabled = cd > 0 || (k === 'crisis' && !!G.crisis);
-      b.onclick = () => { selAct = k; renderPick(); };
-      acts.append(b);
+
+  // people
+  const hb = $('#here'); hb.innerHTML = '';
+  if (inTransit) hb.textContent = 'You are on the road.';
+  else if (!V.here.length) hb.textContent = alive ? 'Nobody else is here.' : 'Nobody (alive) is here.';
+  else for (const q of V.here) {
+    const d = el('div', 'person', `${q.color} ${q.name}${q.mate ? ' 😈' : ''}`);
+    if (q.working) d.append(el('span', 'badge', '🔨 working'));
+    if (role === 'saboteur' && alive && !q.mate) {
+      const k = el('button', 'danger', '🔪 Kill'); k.disabled = me.killCd > 0 || locked;
+      if (me.killCd > 0) k.textContent = `🔪 (${me.killCd}s)`;
+      k.onclick = () => send({ t: 'kill', target: q.id });
+      d.append(k);
     }
-    $('#actHint').textContent = { fake: 'You will look busy, but do nothing.', kill: 'Kills one random builder at the place you pick. Everyone else there will see who was around.', break: 'Breaks the place you pick. Tasks there stop until a builder repairs it.', crisis: 'A fire at the place you pick. All tasks stop until builders put it out together.' }[selAct];
+    hb.append(d);
+  }
+
+  // tasks here / repair / fire
+  const ht = $('#hereTasks'); ht.innerHTML = '';
+  if (!inTransit) {
+    const block = V.fire ? '🔥 halted' : V.broken[here] ? '🔧 broken' : '';
+    const mine = V.tasks.filter(t => t.loc === here && !t.done);
+    if (mine.length || (V.broken[here] && alive) || (V.fire && V.fire.loc === here && alive)) ht.append(el('h3', '', '📋 Do something here'));
+    for (const t of mine) {
+      const b = el('button', 'primary', `▶ ${t.name}`); b.disabled = !!block || locked;
+      b.onclick = () => send({ t: 'taskStart', what: 'task', id: t.id });
+      const row = el('div', 'task'); row.append(b); if (block) row.append(el('span', 'mute', block)); ht.append(row);
+    }
+    if (V.broken[here] && alive) { const b = el('button', '', '🔧 Repair this place'); b.disabled = locked; b.onclick = () => send({ t: 'taskStart', what: 'repair' }); ht.append(b); }
+    if (V.fire && V.fire.loc === here && alive) { const b = el('button', 'danger', '🔥 Fight the fire'); b.disabled = locked; b.onclick = () => send({ t: 'taskStart', what: 'fire' }); ht.append(b); }
+  }
+
+  // travel
+  const gb = $('#goBtns'); gb.innerHTML = '';
+  for (const k of Object.keys(LOCS)) {
+    if (k === here) continue;
+    const b = el('button', '', `${LOCS[k].icon} ${LOCS[k].name}`);
+    b.disabled = inTransit || locked || !!me.busy;
+    b.onclick = () => send({ t: 'go', loc: k });
+    gb.append(b);
+  }
+  $('#plazaBox').classList.toggle('hidden', !(here === 'plaza' && alive && me.emergency > 0 && !inTransit));
+  $('#btnBell').onclick = () => send({ t: 'emergency' });
+
+  // saboteur sabotage panel
+  const sp = $('#sabPanel'); sp.classList.toggle('hidden', !(role === 'saboteur' && alive));
+  if (role === 'saboteur') {
+    $('#btnBreak').disabled = me.sabCd > 0; $('#btnFire').disabled = me.sabCd > 0 || !!V.fire;
+    $('#sabInfo').textContent = me.sabCd > 0 ? `Sabotage ready in ${me.sabCd}s. Kill ${me.killCd > 0 ? 'ready in ' + me.killCd + 's' : 'is ready'}. After a kill you are locked in place for a few seconds.` : `Sabotage ready. Kill ${me.killCd > 0 ? 'ready in ' + me.killCd + 's' : 'is ready'}.`;
+  }
+
+  // ghost overview
+  const gh = $('#ghostBox'); gh.classList.toggle('hidden', alive);
+  if (!alive && V.all) {
+    gh.innerHTML = '';
+    gh.append(el('h3', '', '👻 Spectator view'));
+    for (const q of V.all) gh.append(el('div', '', `${q.color} ${q.name}${q.sab ? ' 😈' : ''}${q.alive ? '' : ' ☠️'} — ${q.dest ? '🚶→ ' + LOCS[q.dest].name : q.loc ? LOCS[q.loc].icon + ' ' + LOCS[q.loc].name : '?'}${q.working ? ' 🔨' : ''}`));
   }
 }
-$('#btnStay').onclick = () => { send({ t: 'stay' }); setView('wait'); $('#waitMsg').textContent = '🏠 You stayed home this round.'; };
 
-function onMyChoice(m) {
-  const L = LOCS[m.loc];
-  setView('task');
-  $('#taskWhere').textContent = `📍 ${L.icon} ${L.name}. You are stuck here until the task is done.`;
-  startMini(m.kind);
+/* ---------- notebook ---------- */
+function renderNotes() {
+  const l = $('#noteList'); l.innerHTML = '';
+  const canShare = inMeeting && V && V.me.alive;
+  const route = el('div', 'note', '📍 My route (last few locations)');
+  if (canShare) { const b = el('button', '', 'Share'); b.disabled = !shares.route; b.onclick = () => send({ t: 'share', id: 'route' }); route.append(el('br'), b); }
+  l.append(route);
+  if (!notes.length) l.append(el('div', 'mute', 'No sightings yet.'));
+  notes.slice().reverse().forEach(n => {
+    const d = el('div', 'note', n.text);
+    if (canShare) { const b = el('button', '', 'Share'); b.disabled = shares.left <= 0; b.onclick = () => send({ t: 'share', id: n.id }); d.append(el('br'), b); }
+    l.append(d);
+  });
+  $('#nbInfo').textContent = inMeeting ? `Shares left this meeting: ${shares.left} sighting(s), route ${shares.route ? '1' : '0'}.` : 'You only remember recent sightings. In a meeting you can share 2 of them and your route once.';
 }
 
 /* ---------- minigames ---------- */
 const NUM = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣'], ARROWS = ['⬅️', '⬆️', '➡️', '⬇️'];
-const TITLES = { chop: '🌲 Chop the tree', mine: '⛏️ Mine the stone', harvest: '🌾 Harvest the crops', hammer: '🔨 Hammer it together', crates: '📦 Count the crates', rewire: '🔧 Repair: reconnect the parts', bucket: '🔥 Put out the fire!' };
 const HELPS = {
   chop: 'Press Space (or the button) when 🟧 is on the 🟩 zone. Land 3 hits.',
   mine: 'Stop 🟧 inside the 🟩 zone. 3 rounds, and the zone shrinks each time.',
@@ -368,15 +429,14 @@ const HELPS = {
   hammer: 'Repeat the arrows with the arrow keys / WASD, or click the buttons.',
   crates: 'Count the 📦 (ignore 🎁) and pick the right number. 3 correct in a row.',
   rewire: 'Click the numbers in order, 1️⃣ to 6️⃣. A wrong pick starts you over.',
-  bucket: 'Fire needs speed! Repeat all 8 arrows. Every needed builder must finish this round.',
+  bucket: 'Repeat all 8 arrows! Enough builders must finish this before time runs out.',
 };
-function addBtn(text, fn) { const b = el('button', '', text); b.onclick = fn; $('#miniBtns').append(b); return b; }
-
-function startMini(kind) {
+function addBtn(text, fn) { const b = el('button', '', text); b.onclick = fn; $('#miniBtns').append(b); }
+function startMini(kind, title) {
   mini = { kind, flash: 0, ok: true, last: '' };
   $('#miniBtns').innerHTML = ''; $('#miniGrid').innerHTML = ''; $('#miniGrid').classList.add('hidden');
-  if (kind === 'chop') { Object.assign(mini, { pos: 0, dir: 1, speed: 0.7, hits: 0 }); addBtn('🪓 Chop (Space)', miniAction); }
-  else if (kind === 'mine') { Object.assign(mini, { pos: 0, dir: 1, round: 0 }); newZone(); addBtn('⛏️ Strike (Space)', miniAction); }
+  if (kind === 'chop') { Object.assign(mini, { pos: 0, dir: 1, speed: 0.7, hits: 0 }); addBtn('🪓 Hit (Space)', miniAction); }
+  else if (kind === 'mine') { Object.assign(mini, { pos: 0, dir: 1, round: 0 }); newZone(); addBtn('✋ Stop (Space)', miniAction); }
   else if (kind === 'harvest' || kind === 'rewire') {
     const n = kind === 'harvest' ? 5 : 6;
     const idx = Array.from({ length: 32 }, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, n);
@@ -394,7 +454,8 @@ function startMini(kind) {
     ARROWS.forEach((a, d) => addBtn(a, () => arrowPress(d)));
   }
   else if (kind === 'crates') { mini.round = 0; newCrates(); }
-  $('#miniTitle').textContent = TITLES[kind]; $('#miniHelp').textContent = HELPS[kind];
+  $('#miniTitle').textContent = title; $('#miniHelp').textContent = HELPS[kind];
+  $('#taskView').classList.remove('hidden'); $('#hereView').classList.add('hidden');
 }
 function newZone() { mini.zw = 5 - mini.round; mini.zs = 1 + Math.floor(Math.random() * (23 - mini.zw)); }
 function newCrates() {
@@ -413,7 +474,6 @@ function newCrates() {
 }
 const flash = ok => { mini.flash = 0.25; mini.ok = ok; };
 const miniIdx = () => Math.round(mini.pos * 24);
-
 function miniAction() {
   if (!mini) return;
   const i = miniIdx();
@@ -437,11 +497,9 @@ function finishMini(ok) {
   if (!mini) return;
   mini = null;
   send({ t: 'taskDone', ok });
-  setView('wait');
-  $('#waitMsg').textContent = ok ? '✅ Task finished. Waiting for the others…' : 'You gave up. Waiting for the others…';
+  $('#taskView').classList.add('hidden'); $('#hereView').classList.remove('hidden');
 }
 $('#btnGiveUp').onclick = () => finishMini(false);
-
 window.addEventListener('keydown', e => {
   if (!mini || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
@@ -451,10 +509,8 @@ window.addEventListener('keydown', e => {
     if (d !== undefined) { e.preventDefault(); arrowPress(d); }
   }
 });
-
 setInterval(() => {
-  const s = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-  $('#actTimer').textContent = s + 's'; $('#mtTimer').textContent = s + 's';
+  $('#mtTimer').textContent = Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) + 's';
   if (!mini) return;
   const dt = 0.05;
   mini.flash = Math.max(0, mini.flash - dt);
@@ -465,8 +521,8 @@ setInterval(() => {
   }
   const track = (i, a, b) => Array.from({ length: 25 }, (_, k) => k === i ? '🟧' : (k >= a && k <= b ? '🟩' : '⬜')).join('');
   let t = '';
-  if (mini.kind === 'chop') t = track(miniIdx(), 11, 13) + '\n🪓 ' + '✅'.repeat(mini.hits) + '⬜'.repeat(3 - mini.hits);
-  else if (mini.kind === 'mine') t = track(miniIdx(), mini.zs, mini.zs + mini.zw - 1) + '\n⛏️ ' + '✅'.repeat(mini.round) + '⬜'.repeat(3 - mini.round);
+  if (mini.kind === 'chop') t = track(miniIdx(), 11, 13) + '\n' + '✅'.repeat(mini.hits) + '⬜'.repeat(3 - mini.hits);
+  else if (mini.kind === 'mine') t = track(miniIdx(), mini.zs, mini.zs + mini.zw - 1) + '\n' + '✅'.repeat(mini.round) + '⬜'.repeat(3 - mini.round);
   else if (mini.kind === 'harvest' || mini.kind === 'rewire') t = 'Next: ' + (mini.next <= mini.n ? NUM[mini.next - 1] : '✅');
   else if (mini.kind === 'hammer' || mini.kind === 'bucket') t = mini.seq.map((d, i) => i < mini.i ? '✅' : i === mini.i ? '👉' + ARROWS[d] : ARROWS[d]).join(' ');
   else if (mini.kind === 'crates') t = mini.cells.slice(0, 6).join(' ') + '\n' + mini.cells.slice(6).join(' ') + '\n' + '✅'.repeat(mini.round) + '⬜'.repeat(3 - mini.round);
@@ -476,35 +532,22 @@ setInterval(() => {
   if (line.className !== cls) line.className = cls;
 }, 50);
 
-/* ---------- notebook ---------- */
-function noteEl(n, share) {
-  const d = el('div', 'note');
-  d.append(el('b', '', n.title), document.createTextNode('\n' + n.text));
-  if (share) { const b = el('button', '', 'Share in chat'); b.onclick = () => send({ t: 'share', id: n.id }); d.append(el('br'), b); }
-  return d;
-}
-function renderNotes() {
-  const l = $('#noteList'); l.innerHTML = '';
-  if (!notes.length) { l.textContent = 'Nothing yet.'; return; }
-  const canShare = phase === 'meeting' && G && myAlive();
-  notes.slice().reverse().forEach(n => l.append(noteEl(n, canShare)));
-}
-
 /* ---------- meeting ---------- */
 function onMeeting(m) {
-  G = { ...G, ...m }; phase = 'meeting'; mini = null;
-  if (m.id !== meetingId) { meetingId = m.id; $('#chatLog').innerHTML = ''; addChat({ kind: 'sys', text: `Round ${m.round} meeting. Compare what you saw.` }); }
+  inMeeting = true; mini = null;
+  $('#taskView').classList.add('hidden');
+  $('#playView').classList.add('hidden'); $('#meetView').classList.remove('hidden');
+  shares = { left: m.sharesLeft, route: m.routeLeft };
+  if (m.id !== meetingId) { meetingId = m.id; $('#chatLog').innerHTML = ''; addChat({ kind: 'sys', text: 'Discuss what you saw. Chat is free, but you can only share 2 sightings + your route from the notebook.' }); }
   endAt = Date.now() + m.left * 1000;
-  $('#actView').classList.add('hidden'); $('#meetView').classList.remove('hidden');
-  renderStatus();
+  $('#meterFill').style.width = m.meter + '%'; $('#meterVal').textContent = m.meter + '%';
   $('#mtStage').textContent = { discuss: '💬 Discussion', vote: '🗳️ Vote', result: '📢 Result' }[m.stage];
-  $('#events').textContent = m.events.join('\n');
-
+  $('#mtReason').textContent = m.reason;
   const me = m.players.find(p => p.id === myId), alive = !!(me && me.alive);
   const rb = $('#btnReady'); rb.classList.toggle('hidden', !(m.stage === 'discuss' && alive));
   rb.textContent = me && me.ready ? 'Waiting… (click to undo)' : 'Ready to vote'; rb.onclick = () => send({ t: 'ready' });
   $('#chatInput').disabled = !alive; $('#btnChat').disabled = !alive;
-
+  if (V) V.me.alive = alive;
   const box = $('#mtPlayers'); box.innerHTML = '';
   for (const p of m.players) {
     const d = el('div', 'mp' + (p.alive ? '' : ' dead'), `${p.color} ${p.name}${p.id === myId ? ' (you)' : ''}`);
@@ -542,8 +585,6 @@ function onOver(m) {
   const crewWin = m.winner === 'crew', iWin = (role === 'crew') === crewWin;
   $('#overTitle').textContent = crewWin ? '🛠️ Builders win!' : '😈 Saboteurs win!';
   $('#overReason').textContent = m.reason + (iWin ? ' You won.' : ' You lost.');
-  $('#overEvents').textContent = m.events.join('\n');
-  $('#overEvents').classList.toggle('hidden', !m.events.length);
   const ul = $('#overList'); ul.innerHTML = '';
   for (const p of m.players) { const li = el('li', '', `${p.color} ${p.name}`); li.append(el('span', 'right', p.role === 'saboteur' ? '😈 Saboteur' : '🛠️ Builder')); ul.append(li); }
   $('#btnBack').classList.toggle('hidden', !isHost); $('#overWait').classList.toggle('hidden', isHost);
