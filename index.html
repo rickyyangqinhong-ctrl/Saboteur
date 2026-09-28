@@ -66,10 +66,13 @@
   </header>
 
   <div id="stage">
-    <canvas id="cv" width="1000" height="640"></canvas>
-    <div id="alertbar" class="hidden"></div>
-    <div id="crisisbar" class="hidden"></div>
+    <div id="banners">
+      <div id="alertbar" class="hidden"></div>
+      <div id="crisisbar" class="hidden"></div>
+    </div>
+    <div id="grid" aria-label="Settlement map"></div>
     <div id="prompt"></div>
+    <div id="legend"><div id="legendNow"></div><div id="legendKey"></div></div>
     <div id="toasts"></div>
   </div>
 
@@ -86,7 +89,9 @@
 <div id="mini" class="overlay hidden">
   <div class="mini-card">
     <h3 id="miniTitle"></h3>
-    <canvas id="mcv" width="440" height="220"></canvas>
+    <div id="miniLine"></div>
+    <div id="miniGrid" class="hidden"></div>
+    <div id="miniBtns"></div>
     <p id="miniHelp"></p>
     <small>Esc to cancel</small>
   </div>
