@@ -1,1 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build &amp; Betray</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+<!-- ============ MENU ============ -->
+<main id="menu" class="screen">
+  <div class="menu-card">
+    <h1>Build <span class="amp">&amp;</span> Betray</h1>
+    <p class="tag">Raise a settlement together. One of you is tearing it down.</p>
+
+    <label>Your name
+      <input id="inName" maxlength="12" placeholder="e.g. Mira" autocomplete="off">
+    </label>
+    <div class="row">
+      <button id="btnCreate" class="primary">Create room</button>
+    </div>
+    <div class="divider">or join friends</div>
+    <div class="row">
+      <input id="inRoom" maxlength="5" placeholder="Room code" autocomplete="off">
+      <button id="btnJoin">Join</button>
+    </div>
+    <p id="menuMsg" class="err"></p>
+
+    <details class="howto">
+      <summary>How to play</summary>
+      <ul>
+        <li><b>Builders</b> gather wood, stone and food, then spend it to finish all 5 buildings.</li>
+        <li><b>Saboteurs</b> (1–2, secret) damage buildings, steal from the storehouse and cause crises. They fake work so nobody notices.</li>
+        <li>Crises: <b>Fire</b> and <b>Power surge</b> must be fixed by holding <kbd>E</kbd> before the timer ends, or the saboteurs win. <b>Lights out</b> shrinks your vision.</li>
+        <li>Inspect sites (<kbd>F</kbd>) for clues: boot prints, who was nearby, ledger entries. Report sabotage (<kbd>R</kbd>) or ring the bell to hold a meeting.</li>
+        <li>In meetings, talk, share clues, then vote someone out. Builders win by finishing the settlement or exposing every saboteur.</li>
+      </ul>
+    </details>
+  </div>
+</main>
+
+<!-- ============ LOBBY ============ -->
+<main id="lobby" class="screen hidden">
+  <div class="menu-card">
+    <p class="tag">Room code — share it with your friends</p>
+    <div id="lobbyCode" class="code">----</div>
+    <ul id="lobbyList" class="plist"></ul>
+    <p id="lobbyHint" class="tag"></p>
+    <div class="row">
+      <button id="btnStart" class="primary hidden">Start game</button>
+    </div>
+  </div>
+</main>
+
+<!-- ============ GAME ============ -->
+<section id="game" class="screen hidden">
+  <header id="hudTop">
+    <div class="integ">
+      <span>Settlement integrity</span>
+      <div class="bar"><div id="integFill"></div></div>
+      <b id="integVal">100</b>
+    </div>
+    <div id="stock"></div>
+    <div id="builds"></div>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv" width="1000" height="640"></canvas>
+    <div id="alertbar" class="hidden"></div>
+    <div id="crisisbar" class="hidden"></div>
+    <div id="prompt"></div>
+    <div id="toasts"></div>
+  </div>
+
+  <footer id="hudBottom">
+    <div id="roleChip"></div>
+    <div id="sabBtns"></div>
+    <div id="keys">WASD move · E interact · F inspect · R report · N notebook</div>
+  </footer>
+</section>
+
+<!-- ============ OVERLAYS ============ -->
+<div id="reveal" class="overlay hidden"><div class="reveal-card"><h2 id="revTitle"></h2><p id="revSub"></p><small>click to continue</small></div></div>
+
+<div id="mini" class="overlay hidden">
+  <div class="mini-card">
+    <h3 id="miniTitle"></h3>
+    <canvas id="mcv" width="440" height="220"></canvas>
+    <p id="miniHelp"></p>
+    <small>Esc to cancel</small>
+  </div>
+</div>
+
+<div id="notebook" class="overlay hidden">
+  <div class="panel">
+    <h3>Notebook</h3>
+    <div id="nbList"></div>
+    <small>Press N to close</small>
+  </div>
+</div>
+
+<div id="meeting" class="overlay hidden">
+  <div class="meet">
+    <div class="meet-head">
+      <div>
+        <div id="mtReason" class="reason"></div>
+        <div id="mtStage" class="stage"></div>
+      </div>
+      <button id="btnReady" class="hidden">Ready to vote</button>
+    </div>
+    <div class="meet-body">
+      <div class="meet-left">
+        <div id="mtPlayers" class="mplayers"></div>
+        <div id="mtResult" class="result hidden"></div>
+      </div>
+      <div class="meet-right">
+        <div id="chatLog"></div>
+        <div class="chat-in">
+          <input id="chatInput" maxlength="140" placeholder="Say something…" autocomplete="off">
+          <button id="btnChat">Send</button>
+        </div>
+        <details id="mtNotes" open>
+          <summary>My clues</summary>
+          <div id="mtNoteList"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="over" class="overlay hidden">
+  <div class="panel over-card">
+    <h2 id="overTitle"></h2>
+    <p id="overReason"></p>
+    <ul id="overList" class="plist"></ul>
+    <button id="btnBack" class="primary hidden">Back to lobby</button>
+    <p id="overWait" class="tag hidden">Waiting for the host…</p>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
